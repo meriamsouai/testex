@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+git name: CI/CD Pipeline
 
 on:
   push:
@@ -11,17 +11,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "18"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
         run: |
           cd backend
-          npm install
+          npm ci
 
       - name: Test backend
         run: |
@@ -44,15 +47,21 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Deploy to Render
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
-          echo "Backend deployment to Render should be configured via Render dashboard"
-          echo "Render will auto-deploy on git push if webhook is configured"
+          if [ -z "$RENDER_API_KEY" ] || [ -z "$RENDER_SERVICE_ID" ]; then
+            echo "⚠️ Render secrets not configured. Skipping deployment."
+            echo "To enable automatic deployment, configure RENDER_API_KEY and RENDER_SERVICE_ID in GitHub Secrets."
+            echo "Alternatively, configure auto-deploy in Render dashboard (recommended)."
+            exit 0
+          fi
+          echo "Render deployment should be configured via Render dashboard for automatic deployment on git push."
 
   deploy-frontend:
     needs: test
@@ -60,7 +69,8 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -70,11 +80,24 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
+      - name: Check Vercel secrets
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+            echo "⚠️ VERCEL_TOKEN secret is not configured."
+            echo "Skipping Vercel deployment. Configure secrets to enable automatic deployment."
+            echo "Alternatively, connect your GitHub repo directly in Vercel dashboard (recommended)."
+          else
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy to Vercel
+        if: steps.check-secrets.outputs.has_secrets == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           cd frontend
-          vercel --prod --token $VERCEL_TOKEN --yes
+          vercel --prod --token="$VERCEL_TOKEN" --yes --scope="$VERCEL_ORG_ID" || vercel --prod --token="$VERCEL_TOKEN" --yes
