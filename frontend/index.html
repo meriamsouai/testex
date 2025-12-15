@@ -212,9 +212,13 @@
         </div>
 
         <div class="pseudo-section">
-            <div class="pseudo-input">
+            <div class="pseudo-input" id="pseudoInputContainer">
                 <input type="text" id="pseudoInput" placeholder="Entrez votre pseudo" maxlength="20">
-                <button onclick="setPseudo()">Valider</button>
+                <button onclick="setPseudo()" id="validatePseudoBtn">Valider</button>
+            </div>
+            <div id="pseudoDisplay" style="display: none; padding: 10px 0; text-align: center;">
+                <span style="color: #667eea; font-weight: bold;">Pseudo: <span id="currentPseudoDisplay"></span></span>
+                <button onclick="editPseudo()" style="margin-left: 10px; padding: 5px 15px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">Modifier</button>
             </div>
         </div>
 
@@ -252,13 +256,26 @@
             }
             
             currentPseudo = pseudo;
-            pseudoInput.disabled = true;
-            document.querySelector('.pseudo-input button').disabled = true;
+            
+            // Masquer le champ de saisie et afficher le pseudo
+            document.getElementById('pseudoInputContainer').style.display = 'none';
+            document.getElementById('pseudoDisplay').style.display = 'block';
+            document.getElementById('currentPseudoDisplay').textContent = pseudo;
+            
             document.getElementById('inputSection').classList.remove('disabled');
             document.getElementById('messageInput').focus();
             
             loadMessages();
             startAutoRefresh();
+        }
+
+        function editPseudo() {
+            // Réafficher le champ de saisie
+            document.getElementById('pseudoInputContainer').style.display = 'flex';
+            document.getElementById('pseudoDisplay').style.display = 'none';
+            document.getElementById('pseudoInput').value = currentPseudo;
+            document.getElementById('pseudoInput').focus();
+            document.getElementById('pseudoInput').select();
         }
 
         function startAutoRefresh() {
